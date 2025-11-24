@@ -1,0 +1,12 @@
+version: '3.9'
+services:
+  playwright-tests:
+    image: registry.internal.example.com/qa/playwright:1.46.0-2025.09
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    env_file:
+      - .env
+    environment:
+      - CI=${CI:-0}
+    entrypoint: ["bash", "-lc", "npm install && acme-playwright"]

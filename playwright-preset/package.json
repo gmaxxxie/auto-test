@@ -1,0 +1,51 @@
+{
+  "name": "@acme/playwright-preset",
+  "version": "1.0.0",
+  "description": "ACME 统一的 Playwright 端到端测试预设",
+  "type": "module",
+  "main": "src/index.js",
+  "types": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "types": "./types/index.d.ts"
+    },
+    "./config": {
+      "import": "./src/config.base.js",
+      "types": "./types/config.base.d.ts"
+    },
+    "./helpers": {
+      "import": "./src/helpers/index.js",
+      "types": "./types/helpers/index.d.ts"
+    },
+    "./helpers/auth": {
+      "import": "./src/helpers/auth.js",
+      "types": "./types/helpers/auth.d.ts"
+    },
+    "./helpers/mock": {
+      "import": "./src/helpers/mock.js",
+      "types": "./types/helpers/mock.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "acme-playwright": "bin/run-tests.mjs"
+  },
+  "files": [
+    "src",
+    "types",
+    "bin",
+    "scripts",
+    "README.md"
+  ],
+  "scripts": {
+    "prepare": "node ./scripts/postinstall-check.mjs || true"
+  },
+  "peerDependencies": {
+    "@playwright/test": "1.46.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8"
+  }
+}

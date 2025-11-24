@@ -1,0 +1,115 @@
+name: reusable-playwright
+
+on:
+  workflow_call:
+    inputs:
+      base_url:
+        description: '必填，被测服务 BASE_URL'
+        required: true
+        type: string
+      browser_matrix:
+        description: '逗号分隔的浏览器/设备列表'
+        required: false
+        type: string
+        default: chromium
+      shard_total:
+        description: '分片总数，用于并行'
+        required: false
+        type: number
+        default: 1
+      headful:
+        description: '是否启用有头模式'
+        required: false
+        type: boolean
+        default: false
+      working_directory:
+        description: '测试所在子目录'
+        required: false
+        type: string
+        default: .
+      install_command:
+        description: '依赖安装命令'
+        required: false
+        type: string
+        default: npm ci
+      cli_args:
+        description: '传递给 acme-playwright 的额外参数'
+        required: false
+        type: string
+        default: ''
+      no_proxy:
+        description: 'NO_PROXY 白名单'
+        required: false
+        type: string
+        default: 'localhost,127.0.0.1'
+    secrets:
+      PLAYWRIGHT_API_TOKEN:
+        required: true
+      INTERNAL_PROXY:
+        required: false
+
+jobs:
+  playwright:
+    name: Playwright shard ${{ matrix.shard_index }} / ${{ inputs.shard_total }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard_index: ${{ fromJson(format('[{0}]', join(range(1, inputs.shard_total + 1), ','))) }}
+    container:
+      image: registry.internal.example.com/qa/playwright:1.46.0-2025.09
+      env:
+        HTTP_PROXY: ${{ secrets.INTERNAL_PROXY }}
+        HTTPS_PROXY: ${{ secrets.INTERNAL_PROXY }}
+        NO_PROXY: ${{ inputs.no_proxy }}
+    env:
+      BASE_URL: ${{ inputs.base_url }}
+      BROWSER_MATRIX: ${{ inputs.browser_matrix }}
+      SHARD_TOTAL: ${{ inputs.shard_total }}
+      SHARD_INDEX: ${{ matrix.shard_index }}
+      HEADFUL: ${{ inputs.headful && '1' || '0' }}
+      PLAYWRIGHT_API_TOKEN: ${{ secrets.PLAYWRIGHT_API_TOKEN }}
+      INTERNAL_PROXY: ${{ secrets.INTERNAL_PROXY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure npm proxy
+        if: ${{ secrets.INTERNAL_PROXY != '' }}
+        run: |
+          npm config set proxy ${{ secrets.INTERNAL_PROXY }}
+          npm config set https-proxy ${{ secrets.INTERNAL_PROXY }}
+          npm config set strict-ssl false
+        working-directory: ${{ inputs.working_directory }}
+
+      - name: Install dependencies
+        run: ${{ inputs.install_command }}
+        working-directory: ${{ inputs.working_directory }}
+
+      - name: Run Playwright tests
+        run: acme-playwright ${{ inputs.cli_args }}
+        working-directory: ${{ inputs.working_directory }}
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-html-${{ matrix.shard_index }}
+          path: ${{ inputs.working_directory }}/playwright-report/html
+          if-no-files-found: warn
+
+      - name: Upload Trace blobs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace-${{ matrix.shard_index }}
+          path: ${{ inputs.working_directory }}/playwright-report/blob
+          if-no-files-found: warn
+
+      - name: Upload JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-junit-${{ matrix.shard_index }}
+          path: ${{ inputs.working_directory }}/playwright-report/junit
+          if-no-files-found: warn
